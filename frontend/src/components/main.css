@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Notable&display=swap');
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+}
+
+.header-container {
+    font-family: 'Notable', sans-serif;
+    font-size: 64px;
+    display: flex;
+    flex-direction: row;
+}
+
+.logo {
+    height: 60px;
+    width: 60px;
+    margin-top: 20px;
+    margin-right: 20px;
+}
+
+.canvas-container{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.canvas {
+    height: 600px;
+    width: 600px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.pixel {
+    border-style: none;
+}
+
+.pixel:hover{
+    cursor: pointer;
+}
