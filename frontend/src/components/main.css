@@ -24,6 +24,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-top: 20px;
+
 }
 
 .canvas {
@@ -37,6 +39,22 @@
     border-style: none;
 }
 
-.pixel:hover{
-    cursor: pointer;
+.modal-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-title {
+    font-family: 'Notable', sans-serif;
+    font-size: 32px;
+}
+
+.color-container {
+    display: flex;
+    flex-direction: row;
+}
+
+.color-right {
+    display: flex;
+    flex-direction: column;
 }
