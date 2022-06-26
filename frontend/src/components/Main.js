@@ -4,6 +4,7 @@ import Rodal from 'rodal';
 import './main.css';
 import logo from '../assets/logo.png'
 import 'rodal/lib/rodal.css';
+import { deleteFlow } from "./DeleteFlow";
 
 export function Main() {
   const kirby = ['#00BCD4', '#00BCD4', '#00BCD4', '#00BCD4', '#00BCD4', '#00BCD4', '#00BCD4', '#00BCD4', '#00BCD4', '#00BCD4', '#F7B7CD', '#F7B7CD', '#F7B7CD', '#F7B7CD', '#00BCD4', '#00BCD4', '#00BCD4', '#F7B7CD', '#F7B7CD', '#F7B7CD', '#F7B7CD', '#F7B7CD', '#F7B7CD', '#00BCD4', '#00BCD4', '#FC7EAC', '#F7B7CD', '#000000', '#F7B7CD', '#000000', '#F7B7CD', '#FC7EAC', '#FC7EAC', '#F7B7CD', '#F7B7CD', '#3F51B5', '#F7B7CD', '#3F51B5', '#F7B7CD', '#FC7EAC', '#FC7EAC', '#FC7EAC', '#F54F89', '#F7B7CD', '#F7B7CD', '#F7B7CD', '#F54F89', '#00BCD4', '#00BCD4', '#C51162', '#FC7EAC', '#FC7EAC', '#F7B7CD', '#F7B7CD', '#C51162', '#00BCD4', '#00BCD4', '#00BCD4', '#D81B60', '#D81B60', '#00BCD4', '#C51162', '#D81B60', '#00BCD4']
@@ -25,7 +26,7 @@ export function Main() {
   const { defaultAbiCoder } = require("ethers/lib/utils");
 
   const receiver = "0x75825e4F250230375Aa664e456C94eED28737F20"
-  const flowRate = 1;
+  const flowRate = 385802469135802; // $1k per month
   
   const connectWallet = async () => {
     try {
@@ -83,9 +84,11 @@ export function Main() {
   }
 
   useEffect(() => {
-    console.log('getting balance')
-    getBalance()
-  }, [currentBalance, getBalance]);
+    const interval = setInterval(() => {
+      getBalance()
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const onStartStream = async () => {
     const provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -138,6 +141,7 @@ export function Main() {
   }
 
   const onStopStream = () => {
+    deleteFlow();
     setIsStarted(false);
   }
 
