@@ -1,4 +1,4 @@
-# r/eth-place
+# eth/place
 
 ## Made for ethNYC by Jessica, Vico, and Winston
 

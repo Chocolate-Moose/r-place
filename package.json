@@ -33,6 +33,7 @@
     "husky": "^4.2.5"
   },
   "dependencies": {
+    "@superfluid-finance/ethereum-contracts": "^1.3.0",
     "rodal": "^1.8.3"
   }
 }
