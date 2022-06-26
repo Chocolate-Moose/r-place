@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.15;
+pragma solidity 0.8.13;
 
 import {RedirectAll, ISuperToken, IConstantFlowAgreementV1, ISuperfluid} from "./RedirectAll.sol";
 
@@ -20,14 +20,13 @@ contract TradeableCashflow is ERC721, RedirectAll {
     ISuperfluid host,
     ISuperToken acceptedToken
   )
-    ERC721 ( _name, _symbol ) {
+    ERC721 ( _name, _symbol )
       // Base URI for computing {tokenURI}. If set, the resulting URI for each
       // token will be the concatenation of the `baseURI` and the `tokenId`. Empty
       // by default, can be overridden in child contracts.
-      function _baseURI() internal override view virtual returns (string memory) {
-        return ""; //TODO: netlify name. It will store as 
-      }
-    }
+    // function _baseURI() internal override view returns (string memory) {
+    //   return "";
+    // }
     RedirectAll (
       host,
       acceptedToken,

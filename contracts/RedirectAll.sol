@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.15;
+pragma solidity 0.8.13;
 
 import {ISuperfluid, ISuperToken, ISuperApp, ISuperAgreement, SuperAppDefinitions} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol"; //"@superfluid-finance/ethereum-monorepo/packages/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 
@@ -8,7 +8,7 @@ import {CFAv1Library} from "@superfluid-finance/ethereum-contracts/contracts/app
 import {IConstantFlowAgreementV1} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 
 import {SuperAppBase} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
-import { AbiCoder, defaultAbiCoder } from "@ethersproject/abi";
+import { defaultAbiCoder } from "@ethersproject/abi";
 
 contract RedirectAll is SuperAppBase {
 
@@ -176,7 +176,7 @@ contract RedirectAll is SuperAppBase {
     //     return true;
     // }
 
-    function setGridColor(bytes calldata _ctx) internal returns() {
+    function setGridColor(bytes calldata _ctx) internal returns(bool) {
         defaultAbiCoder.decode([ "uint[] selectedPixels", "string[] pixelColors" ], data);
         uint i;
         uint arrayLength = selectedPixels.length;
@@ -185,6 +185,7 @@ contract RedirectAll is SuperAppBase {
             grid[idx] = true; // make pixels unavailable for streaming
             gridColor[idx] = pixelColors[i];
         }
+        return true;
     }
     // TODO
     // function beforeAgreementCreated(
@@ -252,14 +253,18 @@ contract RedirectAll is SuperAppBase {
         bytes calldata _ctx
     )
         internal   
-        returns()
+        returns(bool)
     {
+        uint[] selectedPixels;
+        string[] pixelColors;
         defaultAbiCoder.decode([ "uint[] selectedPixels", "string[] pixelColors" ], data);
+        console.log('decodedMessage', decodedMessage);
         uint i;
         uint arrayLength = selectedPixels.length;
         for (i = 0; i < arrayLength; i++) {
             grid[selectedPixels[i]] = false; // make pixel available for streaming
         }
+        return true;
     }
 
     function afterAgreementTerminated(

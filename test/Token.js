@@ -93,67 +93,70 @@ beforeEach(async function () {
     console.log('daix bal for acct 0: ', daiBal);
 });
 
-// describe("sending flows", async function () {    
+describe("sending flows", async function () {    
     
-//     it("Case #1 - Alice sends a flow with userData", async () => {
+    it("Case #1 - Alice sends a flow with userData", async () => {
 
-//         console.log(TradeableCashflow.address);
+        console.log(TradeableCashflow.address);
 
-//         const appInitialBalance = await daix.balanceOf({
-//             account: TradeableCashflow.address,
-//             providerOrSigner: accounts[0]
-//         });
+        const appInitialBalance = await daix.balanceOf({
+            account: TradeableCashflow.address,
+            providerOrSigner: accounts[0]
+        });
 
-//         const message = defaultAbiCoder.encode([uint8, "string"], [0, "11234fd"]);
+        const message = defaultAbiCoder.encode(["uint[]", "string[]"], [[0, 1, 2], ["#FF0000", "#00FF00", "#0000FF"]]);
         
-//         const createFlowOperation = sf.cfaV1.createFlow({
-//             receiver: TradeableCashflow.address,
-//             superToken: daix.address,
-//             flowRate: "100000000",
-//             userData: message
-//         })    
+        const createFlowOperation = sf.cfaV1.createFlow({
+            receiver: TradeableCashflow.address,
+            superToken: daix.address,
+            flowRate: "100000000",
+            userData: message
+        })    
                 
-//         const txn = await createFlowOperation.exec(accounts[0]);
+        const txn = await createFlowOperation.exec(accounts[0]);
 
-//         const receipt = await txn.wait();
+        const receipt = await txn.wait();
 
-//         const appFlowRate = await sf.cfaV1.getNetFlow({
-//             superToken: daix.address,
-//             account: TradeableCashflow.address,
-//             providerOrSigner: superSigner
-//           });
+        console.log('receipt:', receipt);
 
-//         const ownerFlowRate = await sf.cfaV1.getNetFlow({
-//             superToken: daix.address,
-//             account: accounts[1].address,
-//             providerOrSigner: superSigner
-//         })
+        const appFlowRate = await sf.cfaV1.getNetFlow({
+            superToken: daix.address,
+            account: TradeableCashflow.address,
+            providerOrSigner: superSigner
+          });
+
+        const ownerFlowRate = await sf.cfaV1.getNetFlow({
+            superToken: daix.address,
+            account: accounts[1].address,
+            providerOrSigner: superSigner
+        })
         
-//         const appFinalBalance = await daix.balanceOf({
-//             account: TradeableCashflow.address,
-//             providerOrSigner: superSigner
-//         });        
+        const appFinalBalance = await daix.balanceOf({
+            account: TradeableCashflow.address,
+            providerOrSigner: superSigner
+        });        
 
-//         const userDataValue = await TradeableCashflow.userData();
+        const userDataValue = await TradeableCashflow.userData();
 
-//         assert.equal(userDataValue, "HODL MR")
+        assert.equal(userDataValue, "HODL MR")
 
-//         assert.equal(
-//             ownerFlowRate, "100000000", "owner not receiving 100% of flowRate"
-//         );
+        assert.equal(
+            ownerFlowRate, "100000000", "owner not receiving 100% of flowRate"
+        );
 
-//         assert.equal(
-//             appFlowRate,
-//             0,
-//             "App flowRate not zero"
-//         );
+        assert.equal(
+            appFlowRate,
+            0,
+            "App flowRate not zero"
+        );
 
-//         assert.equal(
-//             appInitialBalance.toString(),
-//             appFinalBalance.toString(),
-//             "balances aren't equal"
-//         );
-//     });
+        assert.equal(
+            appInitialBalance.toString(),
+            appFinalBalance.toString(),
+            "balances aren't equal"
+        );
+    });
+});
 
 //     it("Case #2 - Alice upates flows to the contract and new user data", async () => {
 

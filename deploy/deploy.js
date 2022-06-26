@@ -1,58 +1,76 @@
-// This is a script for deploying your contracts. You can adapt it to deploy
-// yours, or create new ones.
-async function main() {
-  // This is just a convenience check
-  if (network.name === "hardhat") {
-    console.warn(
-      "You are trying to deploy a contract to the Hardhat Network, which" +
-        "gets automatically created and destroyed every time. Use the Hardhat" +
-        " option '--network localhost'"
-    );
+require("dotenv").config();
+const deployFramework = require("@superfluid-finance/ethereum-contracts/scripts/deploy-framework");
+const deployTestToken = require("@superfluid-finance/ethereum-contracts/scripts/deploy-test-token");
+const deploySuperToken = require("@superfluid-finance/ethereum-contracts/scripts/deploy-super-token");
+const { Framework } = require("@superfluid-finance/sdk-core");
+const ethers = require("ethers")
+const { web3 } = require("hardhat");
+const { defaultNetwork } = require("../hardhat.config");
+
+//your address and RPC here...
+const owner = process.env.OWNER_ADDRESS;
+const rpcProvider = new ethers.providers.JsonRpcProvider(process.env.GOERLI_URL);
+
+
+module.exports = async ({ getNamedAccounts, deployments }) => {
+  const { deploy } = deployments;
+
+  let sf;
+  const { deployer } = await getNamedAccounts();
+
+  if (defaultNetwork == 'ganache' || defaultNetwork == 'localhost') {
+
+    const errorHandler = (err) => {
+      if (err) throw err;
+    };
+        
+    await deployFramework(errorHandler, {
+      web3,
+      from: deployer,
+    });
+  
+    await deployTestToken(errorHandler, [":", "fDAI"], {
+      web3,
+      from: deployer,
+    });
+    await deploySuperToken(errorHandler, [":", "fDAI"], {
+      web3,
+      from: deployer,
+    });
+
+    sf = await Framework.create({
+      networkName: "custom",
+      provider: web3,
+      dataMode: "WEB3_ONLY",
+      resolverAddress: process.env.RESOLVER_ADDRESS, //this is how you get the resolver address
+      protocolReleaseVersion: "test",
+    });
+
+    const fDAIx = await sf.loadSuperToken("fDAIx");
+    
+    console.log(deployer)
+    await deploy("TradeableCashflow", {
+      from: deployer,
+      args: [deployer, 'nifty_billboard', 'NFTBoard', sf.settings.config.hostAddress, fDAIx.address],
+      log: true,
+    })
   }
 
-  // ethers is available in the global scope
-  const [deployer] = await ethers.getSigners();
-  console.log(
-    "Deploying the contracts with the account:",
-    await deployer.getAddress()
-  );
+  else {    
 
-  console.log("Account balance:", (await deployer.getBalance()).toString());
+    sf = await Framework.create({
+      chainId: (await rpcProvider.getNetwork()).chainId,
+      provider: rpcProvider
+    });
 
-  const Token = await ethers.getContractFactory("Token");
-  const token = await Token.deploy();
-  await token.deployed();
+    const fDAIx = await sf.loadSuperToken("fDAIx");
 
-  console.log("Token address:", token.address);
-
-  // We also save the contract's artifacts and address in the frontend directory
-  saveFrontendFiles(token);
-}
-
-function saveFrontendFiles(token) {
-  const fs = require("fs");
-  const contractsDir = __dirname + "/../frontend/src/contracts";
-
-  if (!fs.existsSync(contractsDir)) {
-    fs.mkdirSync(contractsDir);
+    await deploy("TradeableCashflow", {
+      from: deployer,
+      args: [deployer, 'nifty_billboard', 'NFTBoard', sf.settings.config.hostAddress, fDAIx.address],
+      log: true,
+    })
   }
 
-  fs.writeFileSync(
-    contractsDir + "/contract-address.json",
-    JSON.stringify({ Token: token.address }, undefined, 2)
-  );
-
-  const TokenArtifact = artifacts.readArtifactSync("Token");
-
-  fs.writeFileSync(
-    contractsDir + "/Token.json",
-    JSON.stringify(TokenArtifact, null, 2)
-  );
-}
-
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+};
+module.exports.tags = ["TradeableCashflow"];
