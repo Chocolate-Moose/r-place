@@ -12,7 +12,7 @@ const { Framework } = require("@superfluid-finance/sdk-core");
 const { defaultAbiCoder } = require("ethers/lib/utils");
 
 const receiver = "0x75825e4F250230375Aa664e456C94eED28737F20"
-const flowRate = 1;
+const flowRate = 385802469135802; // $1k per month
 
 async function createNewFlow(flowRate) {
 
