@@ -1,133 +1,364 @@
-// This is an example test file. Hardhat will run every *.js file in `test/`,
-// so feel free to add new ones.
+const { Framework } = require("@superfluid-finance/sdk-core");
+const { assert } = require("chai");
+const { ethers, web3 } = require("hardhat");
+const { AbiCoder, defaultAbiCoder } = require("ethers/lib/utils");
+const daiABI = require("./abis/fDAIABI");
 
-// Hardhat tests are normally written with Mocha and Chai.
+const deployFramework = require("@superfluid-finance/ethereum-contracts/scripts/deploy-framework");
+const deployTestToken = require("@superfluid-finance/ethereum-contracts/scripts/deploy-test-token");
+const deploySuperToken = require("@superfluid-finance/ethereum-contracts/scripts/deploy-super-token");
 
-// We import Chai to use its asserting functions here.
-const { expect } = require("chai");
+const provider = web3;
 
-// `describe` is a Mocha function that allows you to organize your tests. It's
-// not actually needed, but having your tests organized makes debugging them
-// easier. All Mocha functions are available in the global scope.
+let accounts;
 
-// `describe` receives the name of a section of your test suite, and a callback.
-// The callback must define the tests of that section. This callback can't be
-// an async function.
-describe("Token contract", function () {
-  // Mocha has four functions that let you hook into the the test runner's
-  // lifecycle. These are: `before`, `beforeEach`, `after`, `afterEach`.
+let sf;
+let dai;
+let daix;
+let superSigner;
+let TradeableCashflow;
 
-  // They're very useful to setup the environment for tests, and to clean it
-  // up after they run.
+const errorHandler = (err) => {
+    if (err) throw err;
+};
 
-  // A common pattern is to declare some variables, and assign them in the
-  // `before` and `beforeEach` callbacks.
+before(async function () {
 
-  let Token;
-  let hardhatToken;
-  let owner;
-  let addr1;
-  let addr2;
-  let addrs;
+    //get accounts from hardhat
+    accounts = await ethers.getSigners();
 
-  // `beforeEach` will run before each test, re-deploying the contract every
-  // time. It receives a callback, which can be async.
-  beforeEach(async function () {
-    // Get the ContractFactory and Signers here.
-    Token = await ethers.getContractFactory("Token");
-    [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
-
-    // To deploy our contract, we just have to call Token.deploy() and await
-    // for it to be deployed(), which happens onces its transaction has been
-    // mined.
-    hardhatToken = await Token.deploy();
-
-    // We can interact with the contract by calling `hardhatToken.method()`
-    await hardhatToken.deployed();
-  });
-
-  // You can nest describe calls to create subsections.
-  describe("Deployment", function () {
-    // `it` is another Mocha function. This is the one you use to define your
-    // tests. It receives the test name, and a callback function.
-
-    // If the callback function is async, Mocha will `await` it.
-    it("Should set the right owner", async function () {
-      // Expect receives a value, and wraps it in an assertion objet. These
-      // objects have a lot of utility methods to assert values.
-
-      // This test expects the owner variable stored in the contract to be equal
-      // to our Signer's owner.
-      expect(await hardhatToken.owner()).to.equal(owner.address);
+    //deploy the framework
+    await deployFramework(errorHandler, {
+        web3,
+        from: accounts[0].address,
     });
 
-    it("Should assign the total supply of tokens to the owner", async function () {
-      const ownerBalance = await hardhatToken.balanceOf(owner.address);
-      expect(await hardhatToken.totalSupply()).to.equal(ownerBalance);
+    //deploy a fake erc20 token
+    let fDAIAddress = await deployTestToken(errorHandler, [":", "fDAI"], {
+        web3,
+        from: accounts[0].address,
     });
-  });
-
-  describe("Transactions", function () {
-    it("Should transfer tokens between accounts", async function () {
-      // Transfer 50 tokens from owner to addr1
-      await hardhatToken.transfer(addr1.address, 50);
-      const addr1Balance = await hardhatToken.balanceOf(
-        addr1.address
-      );
-      expect(addr1Balance).to.equal(50);
-
-      // Transfer 50 tokens from addr1 to addr2
-      // We use .connect(signer) to send a transaction from another account
-      await hardhatToken.connect(addr1).transfer(addr2.address, 50);
-      const addr2Balance = await hardhatToken.balanceOf(
-        addr2.address
-      );
-      expect(addr2Balance).to.equal(50);
+    //deploy a fake erc20 wrapper super token around the fDAI token
+    let fDAIxAddress = await deploySuperToken(errorHandler, [":", "fDAI"], {
+        web3,
+        from: accounts[0].address,
     });
-
-    it("Should fail if sender doesn’t have enough tokens", async function () {
-      const initialOwnerBalance = await hardhatToken.balanceOf(
-        owner.address
-      );
-
-      // Try to send 1 token from addr1 (0 tokens) to owner (1000 tokens).
-      // `require` will evaluate false and revert the transaction.
-      await expect(
-        hardhatToken.connect(addr1).transfer(owner.address, 1)
-      ).to.be.revertedWith("Not enough tokens");
-
-      // Owner balance shouldn't have changed.
-      expect(await hardhatToken.balanceOf(owner.address)).to.equal(
-        initialOwnerBalance
-      );
+    
+    //initialize the superfluid framework...put custom and web3 only bc we are using hardhat locally
+    sf = await Framework.create({
+        networkName: "custom",
+        provider,
+        dataMode: "WEB3_ONLY",
+        resolverAddress: process.env.RESOLVER_ADDRESS, //this is how you get the resolver address
+        protocolReleaseVersion: "test",
     });
+    
 
-    it("Should update balances after transfers", async function () {
-      const initialOwnerBalance = await hardhatToken.balanceOf(
-        owner.address
-      );
-
-      // Transfer 100 tokens from owner to addr1.
-      await hardhatToken.transfer(addr1.address, 100);
-
-      // Transfer another 50 tokens from owner to addr2.
-      await hardhatToken.transfer(addr2.address, 50);
-
-      // Check balances.
-      const finalOwnerBalance = await hardhatToken.balanceOf(
-        owner.address
-      );
-      expect(finalOwnerBalance).to.equal(initialOwnerBalance - 150);
-
-      const addr1Balance = await hardhatToken.balanceOf(
-        addr1.address
-      );
-      expect(addr1Balance).to.equal(100);
-
-      const addr2Balance = await hardhatToken.balanceOf(
-        addr2.address
-      );
-      expect(addr2Balance).to.equal(50);
+    superSigner = await sf.createSigner({
+        signer: accounts[0],
+        provider: provider
     });
-  });
+    //use the framework to get the super toen
+    daix = await sf.loadSuperToken("fDAIx");
+    
+    //get the contract object for the erc20 token
+    let daiAddress = daix.underlyingToken.address;
+    dai = new ethers.Contract(daiAddress, daiABI, accounts[0]);
+    let App = await ethers.getContractFactory("TradeableCashflow", accounts[0]);    
+    
+    TradeableCashflow = await App.deploy(
+        accounts[1].address,
+        "TradeableCashflow",
+        "TCF",
+        sf.settings.config.hostAddress,
+        daix.address
+    );    
 });
+
+beforeEach(async function () {
+    
+    await dai.connect(accounts[0]).mint(
+        accounts[0].address, ethers.utils.parseEther("1000")
+    );
+
+    await dai.connect(accounts[0]).approve(daix.address, ethers.utils.parseEther("1000"));
+
+    const daixUpgradeOperation = daix.upgrade({
+        amount: ethers.utils.parseEther("1000")
+    });
+
+    await daixUpgradeOperation.exec(accounts[0]);
+
+    const daiBal = await daix.balanceOf({account: accounts[0].address, providerOrSigner: accounts[0]});
+    console.log('daix bal for acct 0: ', daiBal);
+});
+
+// describe("sending flows", async function () {    
+    
+//     it("Case #1 - Alice sends a flow with userData", async () => {
+
+//         console.log(TradeableCashflow.address);
+
+//         const appInitialBalance = await daix.balanceOf({
+//             account: TradeableCashflow.address,
+//             providerOrSigner: accounts[0]
+//         });
+
+//         const message = defaultAbiCoder.encode([uint8, "string"], [0, "11234fd"]);
+        
+//         const createFlowOperation = sf.cfaV1.createFlow({
+//             receiver: TradeableCashflow.address,
+//             superToken: daix.address,
+//             flowRate: "100000000",
+//             userData: message
+//         })    
+                
+//         const txn = await createFlowOperation.exec(accounts[0]);
+
+//         const receipt = await txn.wait();
+
+//         const appFlowRate = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: TradeableCashflow.address,
+//             providerOrSigner: superSigner
+//           });
+
+//         const ownerFlowRate = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: accounts[1].address,
+//             providerOrSigner: superSigner
+//         })
+        
+//         const appFinalBalance = await daix.balanceOf({
+//             account: TradeableCashflow.address,
+//             providerOrSigner: superSigner
+//         });        
+
+//         const userDataValue = await TradeableCashflow.userData();
+
+//         assert.equal(userDataValue, "HODL MR")
+
+//         assert.equal(
+//             ownerFlowRate, "100000000", "owner not receiving 100% of flowRate"
+//         );
+
+//         assert.equal(
+//             appFlowRate,
+//             0,
+//             "App flowRate not zero"
+//         );
+
+//         assert.equal(
+//             appInitialBalance.toString(),
+//             appFinalBalance.toString(),
+//             "balances aren't equal"
+//         );
+//     });
+
+//     it("Case #2 - Alice upates flows to the contract and new user data", async () => {
+
+//         const appInitialBalance = await daix.balanceOf({
+//             account: TradeableCashflow.address,
+//             providerOrSigner: accounts[0]
+//         });
+
+//         const initialOwnerFlowRate = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: accounts[1].address,
+//             providerOrSigner: superSigner
+//         })
+
+//         console.log('initial owner flow rate: ', initialOwnerFlowRate);      
+
+//         const appFlowRate = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: TradeableCashflow.address,
+//             providerOrSigner: superSigner
+//           });
+
+//         const ownerFlowRate = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: accounts[1].address,
+//             providerOrSigner: superSigner
+//         })
+
+//         const senderFlowRate = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: accounts[0].address,
+//             providerOrSigner: superSigner
+//         })
+//         console.log('sender flow rate: ', senderFlowRate);
+//         console.log('tcf address: ', TradeableCashflow.address);
+//         console.log('app flow rate: ', appFlowRate);
+        
+//         const updatedMessage = defaultAbiCoder.encode(['string'], ["SELL MR"]);
+        
+//         const updateFlowOperation = sf.cfaV1.updateFlow({
+//             receiver: TradeableCashflow.address,
+//             superToken: daix.address,
+//             flowRate: "200000000",
+//             userData: updatedMessage
+//         })    
+                
+//         const updateFlowTxn = await updateFlowOperation.exec(accounts[0]);
+
+//         const updateFlowReceipt = await updateFlowTxn.wait();        
+        
+//         const appFinalBalance = await daix.balanceOf({
+//             account: TradeableCashflow.address,
+//             providerOrSigner: superSigner
+//         });     
+        
+//         const updatedOwnerFlowRate = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: accounts[1].address,
+//             providerOrSigner: superSigner
+//         });
+
+//         const updatedUserDataValue = await TradeableCashflow.userData();
+//         console.log("updated value is: ", updatedUserDataValue)
+//         assert.equal(updatedUserDataValue, "SELL MR");
+
+//         assert.equal(
+//             updatedOwnerFlowRate, "200000000", "owner not receiving correct updated flowRate"
+//         );
+
+//         assert.equal(
+//             appFlowRate,
+//             0,
+//             "App flowRate not zero"
+//         );
+
+//         assert.equal(
+//             appInitialBalance.toString(),
+//             appFinalBalance.toString(),
+//             "balances aren't equal"
+//         );
+
+//     });
+
+//     it('Case 3: multiple users send flows into contract', async () => {
+
+//         const aliceMessage = defaultAbiCoder.encode(['string'], ["alice says hi"]);
+//         const bobMessage = defaultAbiCoder.encode(['string'], ["bob says hi"]);
+
+//         const appInitialBalance = await daix.balanceOf({
+//             account: TradeableCashflow.address,
+//             providerOrSigner: accounts[0]
+//         });
+
+//         const initialOwnerFlowRate = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: accounts[1].address,
+//             providerOrSigner: superSigner
+//         })
+
+//         console.log('initial owner flow rate: ', initialOwnerFlowRate);    
+
+//         console.log(accounts[2].address);
+    
+//         const daixTransferOperation = daix.transfer({
+//             receiver: accounts[2].address, 
+//             amount: ethers.utils.parseEther("500")
+//         });
+    
+//         await daixTransferOperation.exec(accounts[0]);   
+        
+//         const account2Balance = await daix.balanceOf({account: accounts[2].address, providerOrSigner: superSigner});
+//         console.log('account 2 balance ',account2Balance);
+        
+//         const createFlowOperation2 = sf.cfaV1.createFlow({
+//             receiver: TradeableCashflow.address,
+//             superToken: daix.address,
+//             flowRate: "100000000",
+//             userData: aliceMessage
+//         })    
+                
+//         const createFlowOperation2Txn = await createFlowOperation2.exec(accounts[2]);
+
+//         const createFlowOperation2Receipt = await createFlowOperation2Txn.wait();
+
+//         const appFlowRate = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: TradeableCashflow.address,
+//             providerOrSigner: superSigner
+//           });
+
+//           const appFinalBalance = await daix.balanceOf({
+//             account: TradeableCashflow.address,
+//             providerOrSigner: superSigner
+//         });     
+        
+//         const updatedOwnerFlowRate2 = await sf.cfaV1.getNetFlow({
+//             superToken: daix.address,
+//             account: accounts[1].address,
+//             providerOrSigner: superSigner
+//         });
+
+//         assert.equal(
+//             updatedOwnerFlowRate2, "300000000", "owner not receiving correct updated flowRate"
+//         );
+
+//         assert.equal(
+//             appFlowRate,
+//             0,
+//             "App flowRate not zero"
+//         );
+
+//         assert.equal(
+//             appInitialBalance.toString(),
+//             appFinalBalance.toString(),
+//             "balances aren't equal"
+//         );
+//     })
+
+// //need deletion case
+        
+// });
+
+//     describe("Changing owner", async function () {
+//         it("Case #5 - When the owner changes, the flow changes", async () => {
+        
+//             const initialOwnerFlowRate = await sf.cfaV1.getNetFlow({
+//                 superToken: daix.address,
+//                 account: accounts[1].address,
+//                 providerOrSigner: superSigner
+//             });
+
+//             console.log("initial owner ", await TradeableCashflow.ownerOf(1));
+//             console.log("initial owner flowRate flowRate: ", initialOwnerFlowRate);
+            
+//             const newOwnerFlowRate = await sf.cfaV1.getNetFlow({
+//                 superToken: daix.address,
+//                 account: accounts[3].address,
+//                 providerOrSigner: superSigner
+//             });
+
+//             console.log("new owner flowRate: ", newOwnerFlowRate);
+//             assert.equal(0, newOwnerFlowRate, "new owner shouldn't have flow yet");
+            
+//             await TradeableCashflow.connect(accounts[1]).transferFrom(accounts[1].address, accounts[3].address, 1);
+
+//             console.log("new owner, ", await TradeableCashflow.ownerOf(1));
+
+//             const initialOwnerUpdatedFlowRate = await sf.cfaV1.getNetFlow({
+//                 superToken: daix.address,
+//                 account: accounts[1].address,
+//                 providerOrSigner: superSigner
+//             });
+
+//             console.log("initial owner updated flow rate", initialOwnerUpdatedFlowRate);
+
+//             assert.equal(initialOwnerUpdatedFlowRate, 0, "old owner should no longer be receiving flows");
+
+//             const newOwnerUpdatedFlowRate = await sf.cfaV1.getNetFlow({
+//                 superToken: daix.address,
+//                 account: accounts[3].address,
+//                 providerOrSigner: superSigner
+//             });
+
+//             console.log('new owner updated flowrate', newOwnerUpdatedFlowRate);
+
+//             assert.equal(newOwnerUpdatedFlowRate, initialOwnerFlowRate, "new receiver should be getting all of flow into app")
+//         });
+//     });
