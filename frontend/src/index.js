@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 // import { Dapp } from "./components/Dapp";
 import { Main } from "./components/Main";
-import { CreateFlow } from "./components/CreateFlow";
+// import { CreateFlow } from "./components/CreateFlow";
 
 
 // We import bootstrap here, but you can remove if you want
@@ -13,7 +13,7 @@ import "bootstrap/dist/css/bootstrap.css";
 
 ReactDOM.render(
   <React.StrictMode>
-    <CreateFlow />
+    <Main />
   </React.StrictMode>,
   document.getElementById("root")
 );
