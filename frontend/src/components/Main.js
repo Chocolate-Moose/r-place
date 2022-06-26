@@ -150,7 +150,7 @@ export function Main() {
       <div className="header-container">
         <div className="header-left">
           <img src={logo} alt="Logo" className="logo"/>
-          <p>r/place</p>
+          <p>eth/place</p>
         </div>
         <div className="header-right">
         
